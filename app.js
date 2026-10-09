@@ -1,12 +1,13 @@
 const express = require('express');
 const app = express();
 const port = 3000;
+const BookModel = require('./model/bookModel');
 
 const logger = (req,res,next)=>{
   
-  req.requestTime = Date.now();
-  console.log(`I m logged...${req.cookies}`)
-  next()
+  req.requestTime = new Date().toISOString();
+  console.log(`[${req.requestTime}] ${req.method} ${req.originalUrl}`);
+  next();
 }
 // 1. Built-in middleware to parse JSON bodies
 app.use(express.json());
@@ -20,44 +21,35 @@ app.use((err, req, res, next) => {
   next();
 });
 
-// In-memory data store
-const books = [
-  { id: 1, title: 'Learning JavaScript', author: 'Saurabh Verma' },
-  { id: 2, title: 'Learning TypeScript', author: 'Saras Verma' }
-];
-
-// Helper: Ensure numeric ID
-function extractNumber(str) {
-  if (typeof str !== 'string') return false;
-  return /^\d+$/.test(str.trim()) ? Number(str) : false;
-}
-
 // Route 1: Root check
 app.get('/', (req, res) => {
-  res.send('Saurabh Verma Server...');
+  res.send('<H1> HELLO.....<H1>');
 });
 
 // Route 2: Get all books
 app.get('/book', (req, res) => {
-  res.status(200).json(books);
+  return res.status(200).json(BookModel.findAll());
 });
 
-// Route 3: Get single book by numeric ID
 app.get('/book/:id', (req, res) => {
-  const targetID = req.params.id;
-  const searchID = extractNumber(targetID);
+  // 1. Read the parameter from req.params
+  const targetId = req.params.id;
 
-  if (!searchID) {
+  // 2. Query the Model
+  const result = BookModel.findById(targetId);
+
+  // 3. Branch A: Malformed ID (Client Error -> 400 Bad Request)
+  if (result && result.error === 'INVALID_ID') {
     return res.status(400).json({ error: 'Invalid ID format. Please provide a numeric ID.' });
   }
 
-  const book = books.find((b) => b.id === searchID);
-
-  if (!book) {
+  // 4. Branch B: Valid ID format, but not in our list (404 Not Found)
+  if (!result) {
     return res.status(404).json({ error: 'No such book found.' });
   }
 
-  return res.status(200).json(book);
+  // 5. Branch C: Book found (200 OK)
+  return res.status(200).json(result);
 });
 
 // Route 4: Create a new book
@@ -93,18 +85,13 @@ app.post('/book', (req, res) => {
     });
   }
 
-  // F. Business Logic: Generate ID, save to array, and return 201 Created
-  const newBook = {
-    id: books.length > 0 ? books[books.length - 1].id + 1 : 1,
-    title: title.trim(),
-    author: author.trim()
-  };
+  // F. Call Model ONCE: It handles ID generation and storage internally
+  const createdBook = BookModel.create(title, author);
 
-  books.push(newBook);
-
+  // G. Return the single created book
   return res.status(201).json({
     message: 'Book created successfully',
-    data: newBook
+    data: createdBook
   });
 });
 
