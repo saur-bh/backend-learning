@@ -1,0 +1,21 @@
+info:
+  name: Post
+  type: http
+
+http:
+  method: POST
+  url: http://localhost:3000/book
+  body:
+    type: json
+    data: |-
+      {
+        "title":"fromAutomaton",
+        "author" :"ToCheck"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
